@@ -235,7 +235,7 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (Schema, error) {
 	// so that in a RESTful paradigm, the Create operation can return
 	// (object, id), so that other operations can refer to (id)
 	if schema.AllOf != nil {
-		mergedSchema, err := MergeSchemas(schema.AllOf, path)
+		mergedSchema, err := MergeSchemas(schema, path)
 		if err != nil {
 			return Schema{}, fmt.Errorf("error merging schemas: %w", err)
 		}
@@ -609,6 +609,10 @@ func GenFieldsFromProperties(props []Property) []string {
 			}
 		}
 
+		if p.Required {
+			fieldTags["validate"] = "required"
+		}
+
 		if extension, ok := p.ExtensionProps.Extensions[extPropExtraTags]; ok {
 			if tags, err := extExtraTags(extension); err == nil {
 				keys := SortedStringKeys(tags)
@@ -627,6 +631,15 @@ func GenFieldsFromProperties(props []Property) []string {
 		fields = append(fields, field)
 	}
 	return fields
+}
+
+func ToGoTag(fieldTags map[string]string) string {
+	keys := SortedStringKeys(fieldTags)
+	tags := make([]string, len(keys))
+	for i, k := range keys {
+		tags[i] = fmt.Sprintf(`%s:"%s"`, k, fieldTags[k])
+	}
+	return "`" + strings.Join(tags, " ") + "`"
 }
 
 func additionalPropertiesType(schema Schema) string {

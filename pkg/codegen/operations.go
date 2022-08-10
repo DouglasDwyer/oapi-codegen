@@ -47,11 +47,26 @@ func (pd ParameterDefinition) TypeDef() string {
 // Foo is marshaled to json as "foo", this will create the annotation
 // 'json:"foo"'
 func (pd *ParameterDefinition) JsonTag() string {
+	fieldTags := map[string]string{}
+
 	if pd.Required {
-		return fmt.Sprintf("`json:\"%s\"`", pd.ParamName)
+		fieldTags["json"] = pd.ParamName
 	} else {
-		return fmt.Sprintf("`json:\"%s,omitempty\"`", pd.ParamName)
+		fieldTags["json"] = fmt.Sprintf("\"%s,omitempty\"", pd.ParamName)
 	}
+
+	if tags, ok := pd.Spec.ExtensionProps.Extensions[extPropExtraTags]; ok {
+		kvs, err := extExtraTags(tags)
+		if err != nil {
+			panic(fmt.Errorf("Could not parse extension tags: %s", err))
+		}
+
+		for k, v := range kvs {
+			fieldTags[k] = v
+		}
+	}
+
+	return ToGoTag(fieldTags)
 }
 
 func (pd *ParameterDefinition) IsJson() bool {
@@ -919,6 +934,9 @@ func GenerateStrictServer(t *template.Template, operations []OperationDefinition
 	}
 	if opts.Generate.GinServer {
 		templates = append(templates, "strict/strict-gin.tmpl")
+	}
+	if opts.Generate.GorillaServer {
+		templates = append(templates, "strict/strict-gorilla.tmpl")
 	}
 	return GenerateTemplates(templates, t, operations)
 }
